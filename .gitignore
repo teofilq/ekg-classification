@@ -169,3 +169,65 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# LaTeX temporary files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+# LaTeX build files
+*.dvi
+*.xdv
+*-converted-to.*
+
+# LaTeX bibliography auxiliary files
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+# LaTeX beamer
+*.nav
+*.pre
+*.snm
+*.vrb
+
+# LaTeX glossaries
+*.acn
+*.acr
+*.glg
+*.glo
+*.gls
+*.glsdefs
+
+# LaTeX indexing files
+*.idx
+*.ilg
+*.ind
+*.ist
+
+# Latexmk
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+
+#date si teste
+/data
+/test
+
+
+
+.DS_Store

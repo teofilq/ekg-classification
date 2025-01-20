@@ -1,0 +1,13 @@
+wfdb
+matplotlib
+numpy
+scipy
+tqdm
+neurokit2
+mne
+jupyter
+ipykernel
+pandas
+pytest
+seaborn
+scikit-learn
