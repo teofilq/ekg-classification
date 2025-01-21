@@ -10,6 +10,7 @@ LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V
 SAMPLE_RATE = 500  
 NUM_SAMPLES = 5000  
 NUM_LEADS = 12   
+PROCESSED_DATA_DIR = Path(__file__).parent.parent / 'data' / 'processed'
 
 #step 2: load data from the dataset
 
@@ -202,45 +203,51 @@ def load_batch(data_dir, main_folder, subfolder, verify=True):
 #step 3: load the data
 
 
-current_dir = Path(__file__).parent.parent
-print("Current directory:", current_dir)
-data_dir = current_dir / 'data' /'raw'/ 'WFDBRecords'
-# Load batch (01/010)
-batch_dataset = load_batch(data_dir, main_folder="01", subfolder="010")
-
-print("\nBatch Summary:")
-print("-" * 50)
-print(f"Successfully loaded: {batch_dataset['metadata']['total_records']} records")
-print(f"Failed records: {len(batch_dataset['metadata']['failed_records'])}")
-
-
-if batch_dataset['records']:
-    first_record = next(iter(batch_dataset['records'].values()))
-    print("\nRecord Details:")
-    print(f"Signal shape: {first_record['data'].shape}")
-    print(f"Sampling rate: {SAMPLE_RATE} Hz")  # Using constant
-    print("\nMetadata:")
-    print(f"Age: {first_record['metadata']['age']}")
-    print(f"Sex: {first_record['metadata']['sex']}")
-    print(f"Diagnosis: {first_record['metadata']['dx']}")
-
-    # Save both data and metadata
-    batch_data = np.stack([record['data'] for record in batch_dataset['records'].values()])
-    batch_metadata = {rid: {
-        'name': record['metadata']['name'],
-        'offsets': record['metadata']['offsets'],
-        'checksums': record['metadata']['checksums'],
-        'age': record['metadata']['age'],
-        'sex': record['metadata']['sex'],
-        'dx': record['metadata']['dx']
-    } for rid, record in batch_dataset['records'].items()}
-    
-
-
-    np.save(f'batch_{batch_dataset["metadata"]["main_folder"]}_{batch_dataset["metadata"]["subfolder"]}_data.npy', batch_data)
-    np.save(f'batch_{batch_dataset["metadata"]["main_folder"]}_{batch_dataset["metadata"]["subfolder"]}_metadata.npy', batch_metadata)
-
 if __name__ == "__main__":
+    current_dir = Path(__file__).parent.parent
+    print("Current directory:", current_dir)
+    data_dir = current_dir / 'data' /'raw'/ 'WFDBRecords'
+    
+    # Create processed directory if it doesn't exist
+    PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Load batch (01/010)
+    batch_dataset = load_batch(data_dir, main_folder="01", subfolder="010")
+
+    print("\nBatch Summary:")
+    print("-" * 50)
+    print(f"Successfully loaded: {batch_dataset['metadata']['total_records']} records")
+    print(f"Failed records: {len(batch_dataset['metadata']['failed_records'])}")
+
+
+    if batch_dataset['records']:
+        first_record = next(iter(batch_dataset['records'].values()))
+        print("\nRecord Details:")
+        print(f"Signal shape: {first_record['data'].shape}")
+        print(f"Sampling rate: {SAMPLE_RATE} Hz")  # Using constant
+        print("\nMetadata:")
+        print(f"Age: {first_record['metadata']['age']}")
+        print(f"Sex: {first_record['metadata']['sex']}")
+        print(f"Diagnosis: {first_record['metadata']['dx']}")
+
+        # Save both data and metadata
+        batch_data = np.stack([record['data'] for record in batch_dataset['records'].values()])
+        batch_metadata = {rid: {
+            'name': record['metadata']['name'],
+            'offsets': record['metadata']['offsets'],
+            'checksums': record['metadata']['checksums'],
+            'age': record['metadata']['age'],
+            'sex': record['metadata']['sex'],
+            'dx': record['metadata']['dx']
+        } for rid, record in batch_dataset['records'].items()}
+        
+        # Modified save commands to use PROCESSED_DATA_DIR
+        save_path = PROCESSED_DATA_DIR / f'batch_{batch_dataset["metadata"]["main_folder"]}_{batch_dataset["metadata"]["subfolder"]}'
+        np.save(f'{save_path}_data.npy', batch_data)
+        np.save(f'{save_path}_metadata.npy', batch_metadata)
+        print(f"\nSaved processed data to: {save_path}_data.npy")
+        print(f"Saved metadata to: {save_path}_metadata.npy")
+
     # Test print for JS00004
     if 'JS00004' in batch_dataset['records']:
         record = batch_dataset['records']['JS00004']
@@ -248,8 +255,8 @@ if __name__ == "__main__":
         print("-" * 50)
         print("Offsets and Checksums by lead:")
         for i, (lead, offset, checksum) in enumerate(zip(LEADS, 
-                                                       record['metadata']['offsets'],
-                                                       record['metadata']['checksums'])):
+                                                        record['metadata']['offsets'],
+                                                        record['metadata']['checksums'])):
             print(f"{lead}: offset={offset}, checksum={checksum}")
         print("\nPatient Info:")
         print(f"Age: {record['metadata']['age']}")
