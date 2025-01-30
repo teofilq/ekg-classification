@@ -86,3 +86,18 @@ Each batch contains two files:
 - [Sparse representation of ECG signals for automated recognition of cardiac arrhythmias](https://www.sciencedirect.com/science/article/abs/pii/S0957417418301842)
 - [Block sparse multi-lead ECG compression exploiting between-lead collaboration](https://ietresearch.onlinelibrary.wiley.com/doi/full/10.1049/iet-spr.2018.5076)
 - [PERSONALIZED ECG MONITORING by sparse representation based feature extraction](https://trepo.tuni.fi/bitstream/handle/10024/119250/JoronenManu.pdf?sequence=2&isAllowed=y)
+
+
+# Altele
+Ce am folosit
+- https://www.nature.com/articles/s41598-020-59821-7
+
+- https://www.nature.com/articles/s41597-020-0386-x
+
+- Implementare Nlm
+https://github.com/zheng120/ECGDenoisingTool
+
+
+- Exemplu date fara zgomot
+  https://figshare.com/collections/ChapmanECG/4560497/2
+
