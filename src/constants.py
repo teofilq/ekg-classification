@@ -4,6 +4,7 @@ from pathlib import Path
 CURRENT_DIR = Path(__file__).parent.parent
 PROCESSED_DATA_DIR = CURRENT_DIR / 'data' / 'processed'
 RAW_DATA_DIR = CURRENT_DIR / 'data' /'raw'/ 'WFDBRecords'
+PLOT_DIR = CURRENT_DIR / 'plots'
 
 DEBUG = False
 
