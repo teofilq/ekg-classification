@@ -36,7 +36,8 @@ This project focuses on detecting and classifying cardiac arrhythmias in 12-lead
   
 
 ## References
-1. [PhysioNet EKG Arrhythmia Database](https://physionet.org/content/mitdb/1.0.0/)
+
+1. [PhysioNet EKG Arrhythmia Database](https://physionet.org/content/ecg-arrhythmia/1.0.0/)
 2. [Heart Arrhythmias Overview](https://www.physio-pedia.com/Heart_Arrhythmias)
 
 ## Data Processing Structure
