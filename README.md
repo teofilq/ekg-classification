@@ -92,7 +92,6 @@ Each batch contains two files:
 Ce am folosit
 - https://www.nature.com/articles/s41598-020-59821-7
 
-- https://www.nature.com/articles/s41597-020-0386-x
 
 - Implementare Nlm
 https://github.com/zheng120/ECGDenoisingTool
