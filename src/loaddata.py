@@ -4,15 +4,13 @@ import wfdb
 from pathlib import Path
 from tqdm import tqdm
 
-DEBUG = False
-
 LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
 SAMPLE_RATE = 500  
 NUM_SAMPLES = 5000  
 NUM_LEADS = 12   
 PROCESSED_DATA_DIR = Path(__file__).parent.parent / 'data' / 'processed'
 RAW_DATA_DIR = Path(__file__).parent.parent / 'data' /'raw'/ 'WFDBRecords'
-
+DEBUG = False
 
 def debug_print(*args, **kwargs):
     """Print only if DEBUG is True."""
@@ -198,7 +196,7 @@ def load_batch(data_dir, main_folder, subfolder, verify=True):
     return dataset
 
 # functie de save la fiecare batch, unde un batch e de ex 01/010
-def save_batch(dataset):
+def save_batch(dataset, output_dir):
     """
     Save the given batch dataset into two .npy files (data & metadata).
     The naming will be based on dataset['metadata']['main_folder'] and
@@ -225,8 +223,8 @@ def save_batch(dataset):
     subfolder = dataset['metadata']['subfolder']
     save_stem = f"batch_{main_folder}_{subfolder}"
 
-    data_path = PROCESSED_DATA_DIR / f"{save_stem}_data.npy"
-    meta_path = PROCESSED_DATA_DIR / f"{save_stem}_metadata.npy"
+    data_path = output_dir / f"{save_stem}_data.npy"
+    meta_path = output_dir / f"{save_stem}_metadata.npy"
 
     np.save(data_path, batch_data)
     np.save(meta_path, batch_metadata)
@@ -234,20 +232,24 @@ def save_batch(dataset):
     debug_print(f"\nSaved processed data to: {data_path}")
     debug_print(f"Saved metadata to: {meta_path}")
 
-# incarca toate batch-urile dintr-un folder
+# incarca toate batch-urile dintr-un folder, de ex, toate subfolderele din 01
 def load_batches_from_folder(main_folder):
     subfolders = [f.name for f in (RAW_DATA_DIR / main_folder).iterdir() if f.is_dir()]
+    processed_folder = PROCESSED_DATA_DIR / main_folder
+    processed_folder.mkdir(parents=True, exist_ok=True)
 
     print(f"\nLoading all batches from main folder: {main_folder}")
     
     with tqdm(total=len(subfolders), desc=f"Processing {main_folder}") as pbar:
         for subfolder in subfolders:
             batch_dataset = load_batch(RAW_DATA_DIR, main_folder, subfolder)
-            save_batch(batch_dataset)
+            save_batch(batch_dataset, processed_folder)
             pbar.update(1)  
             pbar.set_description(f"Loaded batch {main_folder}/{subfolder}")
 
 if __name__ == "__main__":
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    load_batches_from_folder('01')
+    subfolders = sorted([f.name for f in (RAW_DATA_DIR).iterdir() if f.is_dir()])
+    for subfolder in subfolders:
+        load_batches_from_folder(subfolder)
