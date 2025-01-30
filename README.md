@@ -79,3 +79,9 @@ Each batch contains two files:
 # w00ps files
 - WFDBRecords/01/019/JS01052.hea
 - WFDBRecords/23/236/JS23074.hea
+
+# Useful links
+- [Sparse representation-based ECG signal enhancement and QRS detection](https://pubmed.ncbi.nlm.nih.gov/27811395/)
+- [Sparse representation of ECG signals for automated recognition of cardiac arrhythmias](https://www.sciencedirect.com/science/article/abs/pii/S0957417418301842)
+- [Block sparse multi-lead ECG compression exploiting between-lead collaboration](https://ietresearch.onlinelibrary.wiley.com/doi/full/10.1049/iet-spr.2018.5076)
+- [PERSONALIZED ECG MONITORING by sparse representation based feature extraction](https://trepo.tuni.fi/bitstream/handle/10024/119250/JoronenManu.pdf?sequence=2&isAllowed=y)

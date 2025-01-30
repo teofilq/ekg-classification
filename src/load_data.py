@@ -1,16 +1,8 @@
-import os
 import numpy as np
 import wfdb
 from pathlib import Path
 from tqdm import tqdm
-
-LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
-SAMPLE_RATE = 500  
-NUM_SAMPLES = 5000  
-NUM_LEADS = 12   
-PROCESSED_DATA_DIR = Path(__file__).parent.parent / 'data' / 'processed'
-RAW_DATA_DIR = Path(__file__).parent.parent / 'data' /'raw'/ 'WFDBRecords'
-DEBUG = False
+from constants import RAW_DATA_DIR, PROCESSED_DATA_DIR, DEBUG
 
 def debug_print(*args, **kwargs):
     """Print only if DEBUG is True."""
@@ -124,7 +116,7 @@ def create_record_filter(folder=None, record=None):
         return folder_match and record_match
     return filter_func
 
-def load_records(data_dir, record_filter=None, verify=True, save_batch=1000):
+def load_records(data_dir, record_filter=None, verify=True):
     """Generic record loader with filtering"""
     data_dir = Path(data_dir)
     
@@ -206,7 +198,8 @@ def save_batch(dataset, output_dir):
         debug_print("No records to save in this dataset.")
         return
 
-    batch_data = np.stack([record['data'] for record in dataset['records'].values()])
+    # batch_data = np.stack([record['data'] for record in dataset['records'].values()])
+    batch_data = {rec['metadata']['name']: rec['data'] for rec in dataset['records'].values()}
     batch_metadata = {
         rid: {
             'name': rec['metadata']['name'],

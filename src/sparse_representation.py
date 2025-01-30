@@ -181,8 +181,8 @@ if __name__ == "__main__":
     print(f"Directorul cu date procesate: {processed_dir}")
     
     # Construim căile către fișiere folosind Path
-    batch_data_path = processed_dir / "batch_01_010_data.npy"
-    batch_metadata_path = processed_dir / "batch_01_010_metadata.npy"
+    batch_data_path = processed_dir / "01/batch_01_010_data.npy"
+    batch_metadata_path = processed_dir / "01/batch_01_010_metadata.npy"
     
     if not (batch_data_path.exists() and batch_metadata_path.exists()):
         print("Fișierele batch_01_010_data.npy și batch_01_010_metadata.npy nu există în path-ul specificat.")
@@ -235,8 +235,8 @@ if __name__ == "__main__":
     
     # 3) Antrenăm un dicționar cu K-SVD
     dict_size = 30    # ex. 30 atomi în dicționar
-    sparsity = 5      # max 5 coeficienți nenuli
-    max_iter_ksvd = 5 # nr. de iterații K-SVD
+    sparsity = 15      # max 5 coeficienți nenuli
+    max_iter_ksvd = 15 # nr. de iterații K-SVD
     
     print("Antrenare dicționar cu K-SVD...")
     D, X_train_ksvd = ksvd(data_for_dict, dict_size, sparsity, max_iter=max_iter_ksvd)
