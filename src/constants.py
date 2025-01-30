@@ -3,6 +3,7 @@ from pathlib import Path
 # constante pentru foldere
 CURRENT_DIR = Path(__file__).parent.parent
 PROCESSED_DATA_DIR = CURRENT_DIR / 'data' / 'processed'
+FILTERED_DATA_DIR = CURRENT_DIR / 'data' / 'filtered'
 RAW_DATA_DIR = CURRENT_DIR / 'data' /'raw'/ 'WFDBRecords'
 PLOT_DIR = CURRENT_DIR / 'plots'
 

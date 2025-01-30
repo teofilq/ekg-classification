@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import neurokit2 as nk
-from constants import PROCESSED_DATA_DIR, NUM_SAMPLES, SAMPLE_RATE, SNOMED_DICT, LEADS, NUM_LEADS, PLOT_DIR
+from constants import PROCESSED_DATA_DIR, FILTERED_DATA_DIR, NUM_SAMPLES, SAMPLE_RATE, SNOMED_DICT, LEADS, NUM_LEADS, PLOT_DIR
 
 
 def load_ekg_data(batch_data_path, batch_metadata_path):
@@ -106,11 +106,15 @@ def remove_offset_patient_data(patient_data, offsets):
 
     return adjusted_data
 
+def leave_second_derivation(patient_data):
+    return patient_data[:, 1]
+
 if __name__ == "__main__":
     batch_dir = '01'
     batch = '010'
     patient_name = 'JS00008'
     patient_data, patient_metadata = load_pacient_data(batch_dir, batch, patient_name)
+    
     plot_patient_frequency_domain(patient_name, patient_data, patient_metadata, f'raw_{patient_name}_time_domain')
     plot_patient_time_domain(patient_name, patient_data, patient_metadata, f'raw_{patient_name}_frequency_domain')
 
@@ -119,3 +123,4 @@ if __name__ == "__main__":
 
     plot_patient_frequency_domain(patient_name, patient_data, patient_metadata, f'filtered_{patient_name}_time_domain')
     plot_patient_time_domain(patient_name, patient_data, patient_metadata, f'filtered_{patient_name}_frequency_domain')
+
