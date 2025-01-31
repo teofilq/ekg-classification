@@ -3,9 +3,11 @@ from pathlib import Path
 # constante pentru foldere
 CURRENT_DIR = Path(__file__).parent.parent
 PROCESSED_DATA_DIR = CURRENT_DIR / 'data' / 'processed'
-FILTERED_DATA_DIR = CURRENT_DIR / 'data' / 'filtered'
+FILTERED_DATA_DIR = CURRENT_DIR / 'data' / 'filtered_sese'
 RAW_DATA_DIR = CURRENT_DIR / 'data' /'raw'/ 'WFDBRecords'
 PLOT_DIR = CURRENT_DIR / 'plots'
+CLASSIFIER_DATA_DIR = CURRENT_DIR / 'data' / 'classifier'
+MODEL_1_DIR = CURRENT_DIR / 'models'
 
 DEBUG = False
 
@@ -13,7 +15,7 @@ DEBUG = False
 LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
 SAMPLE_RATE = 500  
 NUM_SAMPLES = 5000  
-NUM_LEADS = 12 
+NUM_LEADS = 12
 
 # codurile bolilor cu denumirile lor
 SNOMED_DICT = {'270492004': ('1AVB', '1 degree atrioventricular block'), 
