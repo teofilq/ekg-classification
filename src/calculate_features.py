@@ -87,14 +87,53 @@ def calculate_features(cleaned_signal, sex, age):
     result = np.array([ventricular_rate, atrial_rate, qrs_count, qt_interval, qrs_duration, r_onsets_value_mean, r_offsets_value_mean, q_peaks_value_mean, sex_binary, age])
     return result
 
-batch=load_batch("01", "010")
-batchtest = batch['JS00010']['data'].astype(np.float32)
-classifier_data = {}
-classifier_data['JS00010'] = {}
+def save_classifier_data(batch, batch_dir, batch_name):
+    classifier_batch_dir = CLASSIFIER_DATA_DIR / batch_dir
+    classifier_batch_dir.mkdir(parents=True, exist_ok=True)
+
+    save_stem = f"batch_{batch_dir}_{batch_name}"
+
+    batch_path = f'{classifier_batch_dir}/{save_stem}'
+
+    np.save(batch_path, batch)
 
 
-classifier_data['JS00010']['features'] = calculate_features(batchtest, batch['JS00010']['sex'], batch['JS00010']['age'])
-classifier_data['JS00010']['labels'] = batch['JS00010']['dx']
-print(classifier_data)
-plt.plot(batchtest)
-plt.show()
+def save_features_labels():
+    CLASSIFIER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    main_folders = sorted([f.name for f in FILTERED_DATA_DIR.iterdir() if f.is_dir()])
+
+    for main_folder in main_folders:
+        batches = sorted([
+            f.name.split('_')[2].split('.')[0]
+            for f in (FILTERED_DATA_DIR / main_folder).iterdir()
+            if f.is_file() and f.name.endswith(".npy")
+        ])
+        with tqdm(total=len(batches), desc=f"Processing {main_folder}") as pbar:
+            for batch_name in batches:
+                batch_data = load_batch(main_folder, batch_name)
+
+                if batch_data is None:
+                    print(f"Batch {batch_name} nu a fost găsit în {main_folder}, îl sărim.")
+                    pbar.update(1)
+                    continue
+
+                classifier_data = {}
+
+                for record_name, record_data in batch_data.items():
+                    classifier_data[record_name] = {}
+
+                    features = classifier_data[record_name]['features'] = calculate_features(batch_data[record_name]['data'], batch_data[record_name]['sex'], batch_data[record_name]['age'])
+                    classifier_data[record_name]['features'] = features
+
+                    classifier_data[record_name]['labels'] = np.array(
+                        [int(x.strip()) for x in batch_data[record_name]['dx'].split(',')],
+                        dtype=np.int32  
+                    )
+
+                save_classifier_data(classifier_data, main_folder, batch_name)
+                pbar.update(1)
+
+    
+if __name__ == "__main__":
+    save_features_labels()
