@@ -1,124 +1,159 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import neurokit2 as nk
-from sklearn.decomposition import DictionaryLearning
-from sklearn.linear_model import OrthogonalMatchingPursuit
+import joblib
+from pathlib import Path
+from sklearn.cluster import KMeans
+from sklearn.decomposition import sparse_encode
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from constants import PROCESSED_DATA_DIR, CLASSIFIER_DATA_DIR
+from constants import FILTERED_DATA_DIR, PROCESSED_DATA_DIR, CLASSIFIER_DATA_DIR
 
 # load data
 def load_raw_signal(batch_dir, batch):
-    batch_data_path = PROCESSED_DATA_DIR / f"{batch_dir}/batch_{batch_dir}_{batch}_data.npy"
-    if not batch_data_path.exists():
+    batch_path = FILTERED_DATA_DIR / f"{batch_dir}/batch_{batch_dir}_{batch}.npy"
+
+    if not (batch_path.exists()):
         print(f"Batch-ul {batch} nu exista in folderul {batch_dir}!")
         exit(1)
-    
-    data = np.load(batch_data_path, allow_pickle=True).item()
-    return data
+
+    return np.load(batch_path, allow_pickle=True).item()
+
 
 def load_signal_features(batch_dir, batch):
     batch_path = CLASSIFIER_DATA_DIR / f"{batch_dir}/batch_{batch_dir}_{batch}.npy"
     if not batch_path.exists():
         print(f"Batch-ul {batch} nu exista in folderul {batch_dir}!")
         exit(1)
+    return np.load(batch_path, allow_pickle=True).item()
 
-    batch = np.load(batch_path, allow_pickle=True).item()
-    return batch
 
 def load_dictionary_data(batch_dir, batch):
-    raw_signal_batch = load_raw_signal(batch_dir, batch)
-    signal_features_batch = load_signal_features(batch_dir, batch)
+    raw_signals = load_raw_signal(batch_dir, batch)
+    features = load_signal_features(batch_dir, batch)
 
-    d = {}
-    for record_name in signal_features_batch.keys():
-        d[record_name] = {}
-        d[record_name]['raw_signal'] = raw_signal_batch[record_name][:, 1]
-        d[record_name]['features'] = signal_features_batch[record_name]['features']
+    return {
+        name: {
+            'raw_signal': raw_signals[name]['data'],  
+            'features': features[name]['features']
+        }
+        for name in features.keys()
+    }
 
-    return d
+
+def load_and_concat_data(batches):
+    all_data = {}
+    for (bdir, bnum) in batches:
+        data = load_dictionary_data(bdir, bnum)
+        all_data.update(data)
+    return all_data
 
 # dictionary learning
-def train_ksvd(dictionary_data, dict_size=100, sparsity=10, iterations=10):
-    ekg_signals = []
-    values = []
+def train_ksvd(dictionary_data, dict_size=512, sparsity=15, iterations=25):
+    signals = [rec['raw_signal'] for rec in dictionary_data.values()]
+    signals = np.array([(s - np.mean(s))/np.std(s) for s in signals], dtype=np.float32)  
+    
+    kmeans = KMeans(n_clusters=min(dict_size, len(signals)), n_init=10)
+    kmeans.fit(signals)
+    dictionary = kmeans.cluster_centers_  
+    dictionary = dictionary / np.linalg.norm(dictionary, axis=1, keepdims=True)  
 
-    for record in dictionary_data.keys():
-        ekg_signals.append(dictionary_data[record]['raw_signal'])
-        values.append(dictionary_data[record]['features'])
-
-    ekg_signals = np.array(ekg_signals, dtype=np.float32).T  
-    values = np.array(values, dtype=np.float32).T  
-
-    dict_learner = DictionaryLearning(n_components=dict_size, transform_algorithm='omp', transform_n_nonzero_coefs=sparsity)
-    dictionary = dict_learner.fit(ekg_signals).components_
-
-    transform_matrix = np.random.randn(dict_size, values.shape[0])
+    codes = sparse_encode(signals, dictionary, algorithm='omp', n_nonzero_coefs=sparsity)
+    target_features = np.array([r['features'] for r in dictionary_data.values()], dtype=np.float32)
+    transform_matrix = np.linalg.lstsq(codes, target_features, rcond=None)[0]  
 
     for _ in range(iterations):
-        omp = OrthogonalMatchingPursuit(n_nonzero_coefs=sparsity)
-        sparse_codes = omp.fit(dictionary.T, ekg_signals.T).coef_.T  # (num_samples, dict_size)
+        codes = sparse_encode(signals, dictionary, algorithm='omp', n_nonzero_coefs=sparsity)
+        
+        for i in range(dictionary.shape[0]):
+            idx = np.where(codes[:, i] != 0)[0]
+            if len(idx) == 0:
+                continue
 
-        # minimizarea erorii
-        transform_matrix = np.linalg.pinv(sparse_codes) @ values.T  # pseudo-inversă
+            E = signals[idx] - codes[idx] @ dictionary + np.outer(codes[idx, i], dictionary[i])
+            
+            U, S, Vt = np.linalg.svd(E, full_matrices=False)
+            dictionary[i] = Vt[0]
+            codes[idx, i] = S[0] * U[:, 0]
 
-        predicted_values = sparse_codes @ transform_matrix  # (num_samples, 6)
-        error = values.T - predicted_values  
-
-        dictionary = dict_learner.fit(ekg_signals - (error @ transform_matrix.T)).components_
+        transform_matrix = np.linalg.lstsq(codes, target_features, rcond=None)[0]
 
     return dictionary, transform_matrix
 
-def predict_features(dictionary, transform_matrix, new_ekg):
-    new_ekg = np.array(new_ekg, dtype=np.float32).reshape(1, -1)  
+# predict
+def predict_features(dictionary, transform_matrix, new_signal, sparsity=15):
+    s = (new_signal - np.mean(new_signal)) / np.std(new_signal)
+    s = s.reshape(1, -1)  
+    code = sparse_encode(s, dictionary, algorithm='omp', n_nonzero_coefs=sparsity)  
+    return code @ transform_matrix  
+
+def extract_features_from_new_signal(dictionary, transform_matrix, raw_signal, sparsity=15):
+    predicted = predict_features(dictionary, transform_matrix, raw_signal, sparsity=sparsity)
+    return predicted.flatten()  
+
+# test
+def test_model(dictionary, transform_matrix, test_data, sparsity=15):
+    actual, predicted = [], []
+    for name, data in test_data.items():
+        try:
+            pred = predict_features(dictionary, transform_matrix, data['raw_signal'], sparsity=sparsity)
+            actual.append(data['features'])
+            predicted.append(pred.flatten())
+        except Exception as e:
+            print(f"Eroare la {name}: {str(e)}")
     
-    # reprezentarea sparse cu OMP
-    omp = OrthogonalMatchingPursuit(n_nonzero_coefs=10)
-    sparse_code = omp.fit(dictionary.T, new_ekg).coef_.T
+    mae = mean_absolute_error(actual, predicted)
+    mse = mean_squared_error(actual, predicted)
+    print(f"MAE: {mae:.4f}")
+    print(f"MSE: {mse:.4f}")
+    return dict(zip(test_data.keys(), predicted))
 
-    # estimarea caracteristicilor
-    predicted_values = sparse_code @ transform_matrix
-    return predicted_values.flatten()
+# save / load
+def save_model(model, path="../models/dictionary"):
+    Path(path).parent.mkdir(exist_ok=True, parents=True)
+    joblib.dump({'dictionary': model[0], 'transform_matrix': model[1]}, path)
 
-def test_model(dictionary, transform_matrix, test_data):
-    results = {}
-    for record in test_data.keys():
-        test_ekg = test_data[record]['raw_signal']
-        predicted_values = predict_features(dictionary, transform_matrix, test_ekg)
-        results[record] = predicted_values
-    return results
+def load_model(path="../models/dictionary"):
+    model = joblib.load(path)
+    return model['dictionary'], model['transform_matrix']
 
-def save_dictionary(dictionary, transform_matrix, filename="dictionary.pkl"):
-    with open(filename, 'wb') as f:
-        pickle.dump((dictionary, transform_matrix), f)
+if __name__ == "__main__":
+    train_batches = [
+        ('01', '010'),
+        ('01', '011'),
+        ('01', '012'),
+        ('01', '013'),
+        ('01', '014'),
+        ('01', '015'),
+        ('01', '016'),
+        ('01', '017'),
+        ('01', '018'),
+        ('01', '019'),
+    ]
 
-def load_dictionary(filename="dictionary.pkl"):
-    with open(filename, 'rb') as f:
-        return pickle.load(f)
+    test_batches = [
+        ('02', '020'),
+    ]
 
-def test_model(dictionary, transform_matrix, test_data):
-    results = {}
-    actual_values = []
-    predicted_values_list = []
-    
-    for record in test_data.keys():
-        test_ekg = test_data[record]['raw_signal']
-        predicted_values = predict_features(dictionary, transform_matrix, test_ekg)
-        results[record] = predicted_values
-        actual_values.append(test_data[record]['features'])
-        predicted_values_list.append(predicted_values)
-    
-    actual_values = np.array(actual_values)
-    predicted_values_list = np.array(predicted_values_list)
-    
-    mae = mean_absolute_error(actual_values, predicted_values_list)
-    mse = mean_squared_error(actual_values, predicted_values_list)
-    print(f"Mean Absolute Error (MAE): {mae}")
-    print(f"Mean Squared Error (MSE): {mse}")
-    
-    return results
+    train_data = load_and_concat_data(train_batches)
 
-training_batch_data = load_dictionary_data('01', '010')
-test_batch_data = load_dictionary_data('01', '011')
-print(training_batch_data['JS00001']['features'])
+    DICT_SIZE = 512   
+    SPARSITY = 15    
+    ITERATIONS = 25 
 
-# dictionary, transform_matrix = train_ksvd(training_batch_data)
+    dictionary, tm = train_ksvd(
+        dictionary_data=train_data,
+        dict_size=DICT_SIZE,
+        sparsity=SPARSITY,
+        iterations=ITERATIONS
+    )
+
+    save_model((dictionary, tm))
+
+    loaded_dict, loaded_tm = load_model()
+
+    test_data = load_and_concat_data(test_batches)
+    results = test_model(loaded_dict, loaded_tm, test_data, sparsity=SPARSITY)
+
+    for k, v in list(results.items())[:3]:
+        print(f"\n{k}:")
+        print(f"Real: {test_data[k]['features']}")
+        print(f"Pred: {v}")
+
