@@ -1,0 +1,234 @@
+\documentclass[12pt]{article}  % <--- ACTIVA pentru compila PAPER
+%\documentclass[aspectratio=169,xcolor=dvipsnames]{beamer}  % <--- INACTIVA (comenteaza) pentru Paper
+
+% PACHETE COMUNE
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+
+\geometry{a4paper, margin=1in}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PAPER %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Daca folosesti \documentclass[12pt]{article}, tot ce urmeaza pana la \end{document}
+% va fi compilat ca PAPER. (Comenteaza-l pt a compila beamer)
+
+\begin{document}
+
+\title{\textbf{Algoritmi de Reprezentare Rară, Învățarea Dicționarelor și Reconstrucție Rară: 
+\\
+Detectarea și Clasificarea Aritmiilor EKG pe 12 Derivații}}
+\author{Tudor Pistol și Teofil Simiraș}
+\date{\today}
+\maketitle
+
+\tableofcontents
+
+\section{TITLU ȘI CUPRINS}
+
+\textbf{Titlu propus pentru proiect:}\\
+\emph{„Algoritmi de Reprezentare Rară, Învățarea Dicționarelor și Reconstrucție Rară: Detectarea și Clasificarea Aritmiilor EKG pe 12 Derivații”}
+
+\textbf{Cuprins (planificat pentru prezentare):}
+\begin{enumerate}
+    \item Introducere și Context
+    \item Problema Abordată
+    \item Justificarea Problemei
+    \item Abordare Tehnică Propusă
+    \item Tehnologii și Biblioteci Folosite
+    \item Rezultate Așteptate și Metodologie de Evaluare
+    \item Concluzii și Direcții Potențiale de Extindere
+\end{enumerate}
+
+\section{PROBLEMA ABORDATĂ ÎN PROIECT}
+
+În cadrul acestui proiect, \textbf{intenționăm să detectăm și să clasificăm aritmiile cardiace} (cum ar fi fibrilația atrială, extrasistole etc.) în semnalele EKG cu \textbf{12 derivații}. Se știe că:
+
+\begin{itemize}
+    \item Datele EKG de 12 derivații oferă o imagine foarte completă a activității electrice a inimii, dar sunt și mai voluminoase.
+    \item Analiza clasică necesită implicarea intensivă a specialiștilor (cardiologi), iar variabilitatea umană poate duce la erori.
+\end{itemize}
+
+\textbf{Obiectiv principal}: Să dezvoltăm (în următoarea perioadă) un \emph{pipeline automat} care, după preprocesarea și segmentarea bătăilor cardiace, să aplice \textbf{Reprezentarea Rară (Sparse Coding)} pentru extragerea de caracteristici și apoi să folosească un \textbf{clasificator} (SVM, Logistic Regression etc.) pentru a identifica automat bătăile normale față de cele care prezintă aritmii cardiace.
+
+\section{JUSTIFICAREA PROBLEMEI ABORDATE}
+
+\subsection*{1. De ce e importantă?}
+\begin{itemize}
+    \item Aritmiile cardiace sunt frecvente și pot fi critice dacă nu sunt depistate la timp.
+    \item Un sistem semi-automat sau automat pentru detecția aritmiilor cardiace reduce timpul de diagnostic și crește acuratețea.
+\end{itemize}
+
+\subsection*{2. Context și ce problemă rezolvă?}
+\begin{itemize}
+    \item În spitale se adună zilnic sute/mii de EKG-uri. Un algoritm robust ajută la trierea rapidă a pacienților care au nevoie de investigații suplimentare.
+    \item În dispozitive portabile (Holter EKG, wearables), un algoritm cu cost computațional relativ scăzut poate alerta medicul sau pacientul în timp real.
+\end{itemize}
+
+\subsection*{3. Unde poate fi folosit?}
+\begin{itemize}
+    \item Clinici, centre de cardiologie, laboratoare de cercetare care lucrează cu analiza semnalelor cardiace.
+    \item În aplicații de telemedicină și monitorizare la distanță (conectate la cloud).
+\end{itemize}
+
+\section{CUM ESTE ABORDATĂ PROBLEMA TEHNIC}
+
+\subsection{Preprocesare Semnal EKG}
+
+\textbf{Filtrare (Butterworth și Chebyshev):}
+\begin{itemize}
+    \item Deoarece la curs am discutat despre filtre \textbf{Butterworth} și \textbf{Chebyshev}, vom folosi un \emph{band-pass} (0.5--40 Hz) pentru a reține doar componentele relevante ale semnalului EKG.
+    \item Butterworth oferă o tranziție mai lină și nu introduce ripple în banda de trecere.
+    \item Chebyshev (dacă e nevoie de roll-off mai abrupt) introduce ripple, dar separă mai ferm zona filtrată.
+\end{itemize}
+
+\textbf{Segmentare pe bătăi cardiace:}
+\begin{itemize}
+    \item Identificăm complexul QRS cu un algoritm (ex. Pan-Tompkins).
+    \item Extragem o fereastră fixă (ex. 100 ms înainte și 300 ms după R-peak) pentru fiecare bătaie.
+\end{itemize}
+
+\textbf{Normalizare:}
+\begin{itemize}
+    \item Aducem amplitudinile în același interval (ex. [-1, 1]) pentru a facilita învățarea.
+\end{itemize}
+
+\subsection{Reprezentare Rară (Sparse Representation)}
+
+\textbf{Definiție:}  
+Reprezentarea rară presupune exprimarea unui semnal \( y \in \mathbb{R}^m \) ca o combinație liniară a unui \emph{număr mic de atomi} dintr-un dicționar \( D \in \mathbb{R}^{m \times n} \):
+\[
+y = D x,
+\]
+unde doar câțiva coeficienți din \( x \) sunt nenuli (suport rar).
+
+\subsubsection*{Probleme de optimizare pentru Sparse Coding}
+
+\begin{itemize}
+    \item \textbf{Criteriu al erorii:}  
+    \[
+    \min_x \|x\|_0 
+    \quad\text{s.t.}\quad
+    \|y - D x\| \leq \epsilon.
+    \]
+    \item \textbf{Criteriu al rarității (sparsity):}  
+    \[
+    \min_x \|y - D x\|^2
+    \quad\text{s.t.}\quad
+    \|x\|_0 \leq s.
+    \]
+\end{itemize}
+
+\subsection{Algoritmi pentru Sparse Coding}
+
+\textbf{OMP (Orthogonal Matching Pursuit):}
+\begin{enumerate}[label=(\alph*)]
+    \item Este un algoritm \emph{greedy} foarte utilizat.
+    \item Construiește iterativ suportul vectorului rar \(x\):
+    \begin{enumerate}[label=(\roman*)]
+        \item Inițializează reziduul \( e = y \) și suportul \( S = \emptyset \).
+        \item Găsește atomul \( k \) care are cea mai mare corelație cu reziduul:
+        \[
+        k = \arg \max_{j \notin S} \bigl| e^T d_j \bigr|.
+        \]
+        \item Actualizează suportul \( S = S \cup \{ k \}\). Apoi rezolvă problema de minim pe suportul \(S\):
+        \[
+        x_S = (D_S^T D_S)^{-1} D_S^T y,
+        \]
+        iar restul componentelor \(x\) sunt zero.
+        \item Recalculează reziduul: \( e = y - D_S x_S \).
+        \item Se oprește când \(\| e \| \le \epsilon\) sau suportul atinge dimensiunea maximă \(s\).
+    \end{enumerate}
+\end{enumerate}
+
+\subsection{Antrenarea Dicționarelor (Dictionary Learning)}
+
+\textbf{Scop:}  
+Obținerea unui dicționar \(D\) care să ofere reprezentări rare cât mai bune pentru setul de semnale EKG de antrenare \(Y\):
+\[
+\min_{D, X} \|Y - D X\|_F^2
+\quad\text{s.t.}\quad
+\|x_\ell\|_0 \le s, \; \forall \ell.
+\]
+\begin{itemize}
+    \item \( Y \in \mathbb{R}^{m \times N} \) -- setul de antrenare (bătăi EKG).
+    \item \( D \in \mathbb{R}^{m \times n} \) -- dicționarul.
+    \item \( X \in \mathbb{R}^{n \times N} \) -- coeficienții rari (fiecare coloană e un \( x_\ell \)).
+\end{itemize}
+
+\textbf{Algoritmul K-SVD (pe scurt):}
+\begin{enumerate}
+    \item \emph{Sparse coding:} Se calculează coeficienții \( x_i \) cu un algoritm (ex. OMP).
+    \item \emph{Actualizarea dicționarului:}  
+    \begin{itemize}
+        \item Se calculează eroarea reziduală \( F = Y - D X \).
+        \item Pentru fiecare atom \( d_j \), se extrage doar partea de reziduu unde \( d_j \) e folosit; se aplică SVD pe acest subset și se obțin noile valori pentru \( d_j \) și coeficienții corespunzători.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Clasificarea Bătăilor EKG (Aritmii vs. Normale)}
+
+\begin{itemize}
+    \item După calcularea coeficienților rari (\( x \)) pentru fiecare bătaie, concatenăm/folosim acești coeficienți ca \emph{feature vector}.
+    \item \textbf{Algoritm de clasificare}:
+    \begin{enumerate}
+        \item \textbf{SVM (ex. kernel RBF)}: adesea folosit pentru probleme de clasificare binară (normal vs. aritmie).
+        \item \textbf{Regresie Logistică}: metodă mai simplă, interpretabilă.
+        \item (Opțional) \textbf{Random Forest}, \textbf{XGBoost} sau \textbf{Rețele Neurale} pentru performanțe avansate.
+    \end{enumerate}
+    \item Se împarte setul de date (bătăi EKG) în \texttt{train/test}, se antrenează clasificatorul pe setul \texttt{train} și se evaluează pe \texttt{test}.
+\end{itemize}
+
+\subsection{Aplicații ale Reprezentării Rare în EKG}
+\begin{itemize}
+    \item \textbf{Clasificare (arie principală)}: Bătăi normale vs. aritmii, folosind coeficienții rari.
+    \item \textbf{Denoising}: Zgomotul din semnal poate fi redus prin reconstrucție.
+    \item \textbf{Compression / Inpainting}: Reconstrucția zonelor lipsă din EKG.
+\end{itemize}
+
+\section{REZULTATE AȘTEPTATE ȘI METODOLOGIE DE EVALUARE}
+
+\subsection*{1. Scenariu de Antrenare/Test}
+\begin{itemize}
+    \item Setul de date EKG se împarte în bătăi cardiace normale și bătăi cu aritmii.
+    \item Se antrenează dicționarul (K-SVD) și clasificatorul (SVM / Logistic Regression etc.) pe setul de antrenare, se validează și se testează ulterior.
+\end{itemize}
+
+\subsection*{2. Metrici de evaluare}
+\begin{itemize}
+    \item \textbf{Acuratețe}, \textbf{Sensibilitate (Recall)}, \textbf{Specifitate}, \textbf{F1-score}, \textbf{ROC/AUC}.
+    \item Evaluarea reconstrucției: \(\|Y - D X\|_F\) (dacă urmărim și calitatea reconstrucției).
+\end{itemize}
+
+\subsection*{3. Rezultate așteptate}
+\begin{itemize}
+    \item Acuratețe de peste 90\% în detecția aritmiilor.
+    \item Reducerea semnificativă a zgomotului prin sparse coding.
+    \item O separare clară a bătăilor anormale față de cele normale în spațiul coeficienților rari.
+\end{itemize}
+
+\section{CONCLUZII ȘI DIRECȚII POTENȚIALE DE EXTINDERE}
+
+\subsection*{Concluzie Principală}
+Reprezentarea rară (Sparse Coding) permite extragerea de trăsături esențiale din semnalul EKG pe 12 derivații, facilitând \textbf{clasificarea aritmiilor cardiace} cu acuratețe ridicată și oferind posibilități de \emph{denoising}, \emph{inpainting} și \emph{compresie}.
+
+\subsection*{Direcții posibile de extindere}
+\begin{itemize}
+    \item \textbf{Abordare multi-clasă}: tipuri variate de aritmii (fibrilație atrială, flutter, bloc AV etc.).
+    \item \textbf{Implementare embedded}: pe dispozitive Holter cu latență redusă.
+    \item \textbf{Sparse Autoencoder}: în loc de OMP + K-SVD, putem folosi un autoencoder cu constrângeri de raritate.
+\end{itemize}
+
+\section*{Bibliografie}
+\begin{itemize}
+    \item \textbf{[1]} \emph{A large scale 12-lead electrocardiogram database for arrhythmia study}, \url{https://physionet.org/content/ecg-arrhythmia/1.0.0/}
+    \item \textbf{[2]} \emph{Heart Arrhythmias}, \url{https://www.physio-pedia.com/Heart_Arrhythmias}
+    \item \textbf{[3]} \emph{Cursul de Procesarea Semnalelor}, \url{https://cs.unibuc.ro/~crusu/ps/index.html}
+    \item \textbf{[4]} \emph{Cursul de Calcul Numeric}, \url{https://numeric.cs.unibuc.ro/cni.html}
+\end{itemize}
+
+\end{document}
