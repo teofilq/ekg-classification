@@ -32,7 +32,7 @@ def load_dictionary_data(batch_dir, batch):
     return {
         name: {
             'raw_signal': raw_signals[name]['data'],  
-            'features': features[name]['features']
+            'features': features[name]['features'][:-2]
         }
         for name in features.keys()
     }
@@ -125,11 +125,10 @@ if __name__ == "__main__":
         ('01', '016'),
         ('01', '017'),
         ('01', '018'),
-        ('01', '019'),
     ]
 
     test_batches = [
-        ('02', '020'),
+        ('01', '019'),
     ]
 
     train_data = load_and_concat_data(train_batches)
@@ -156,4 +155,3 @@ if __name__ == "__main__":
         print(f"\n{k}:")
         print(f"Real: {test_data[k]['features']}")
         print(f"Pred: {v}")
-
