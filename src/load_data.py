@@ -1,20 +1,13 @@
-#step 1: import the necessary libraries
-
-import os
 import numpy as np
 import wfdb
 from pathlib import Path
 from tqdm import tqdm
+from constants import RAW_DATA_DIR, PROCESSED_DATA_DIR, DEBUG
 
-LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
-SAMPLE_RATE = 500  
-NUM_SAMPLES = 5000  
-NUM_LEADS = 12   
-PROCESSED_DATA_DIR = Path(__file__).parent.parent / 'data' / 'processed'
-
-#step 2: load data from the dataset
-
-
+def debug_print(*args, **kwargs):
+    """Print only if DEBUG is True."""
+    if DEBUG:
+        print(*args, **kwargs)
 
 def get_all_record_folders(data_dir):
     """Read main RECORDS file and return all folder paths"""
@@ -46,8 +39,8 @@ def read_header_metadata(header_file):
     """Read only essential metadata from .hea file"""
     metadata = {
         'name': None,
-        'offsets': [],    # Separate list for offsets
-        'checksums': [],  # Separate list for checksums
+        'offsets': [],    
+        'checksums': [], 
         'age': None,
         'sex': None,
         'dx': None
@@ -74,7 +67,7 @@ def read_header_metadata(header_file):
                         metadata[key] = value.strip()
                         
     except Exception as e:
-        print(f"Error reading header file {header_file}: {e}")
+        debug_print(f"Error reading header file {header_file}: {e}")
     
     return metadata
 
@@ -83,12 +76,10 @@ def load_record(record_path, data_dir, verify=True):
     base_path = str(record_path.parent / record_path.stem)
     
     try:
-        # Read the record using wfdb
         record = wfdb.rdrecord(base_path, 
                              pn_dir=None, 
                              return_res=16)
         
-        # Read minimal header metadata
         header_file = Path(base_path + '.hea')
         metadata = read_header_metadata(header_file)
         
@@ -98,7 +89,7 @@ def load_record(record_path, data_dir, verify=True):
             'metadata': metadata
         }
     except Exception as e:
-        print(f"Error reading {record_path}: {e}")
+        debug_print(f"Error reading {record_path}: {e}")
         return None
 
 def scan_dataset(data_dir):
@@ -125,7 +116,7 @@ def create_record_filter(folder=None, record=None):
         return folder_match and record_match
     return filter_func
 
-def load_records(data_dir, record_filter=None, verify=True, save_batch=1000):
+def load_records(data_dir, record_filter=None, verify=True):
     """Generic record loader with filtering"""
     data_dir = Path(data_dir)
     
@@ -181,96 +172,77 @@ def load_batch(data_dir, main_folder, subfolder, verify=True):
         }
     }
     
-    print(f"Loading batch from {main_folder}/{subfolder}")
-    print(f"Found {len(records)} records")
+    debug_print(f"Loading batch from {main_folder}/{subfolder}")
+    debug_print(f"Found {len(records)} records")
     
-    with tqdm(total=len(records)) as pbar:
-        for record_name in records:
-            record_path = batch_path / record_name
-            data = load_record(record_path, data_dir, verify)
-            
-            if data is not None:
-                dataset['records'][record_name] = data
-                pbar.update(1)
-                pbar.set_description(f"Loaded {record_name}")
-            else:
-                dataset['metadata']['failed_records'].append(str(record_path))
+    for record_name in records:
+        record_path = batch_path / record_name
+        data = load_record(record_path, data_dir, verify)
+        
+        if data is not None:
+            dataset['records'][record_name] = data
+        else:
+            dataset['metadata']['failed_records'].append(str(record_path))
     
     dataset['metadata']['total_records'] = len(dataset['records'])
     return dataset
 
+# functie de save la fiecare batch, unde un batch e de ex 01/010
+def save_batch(dataset, output_dir):
+    """
+    Save the given batch dataset into two .npy files (data & metadata).
+    The naming will be based on dataset['metadata']['main_folder'] and
+    dataset['metadata']['subfolder'].
+    """
+    if not dataset or not dataset['records']:
+        debug_print("No records to save in this dataset.")
+        return
 
-#step 3: load the data
+    # batch_data = np.stack([record['data'] for record in dataset['records'].values()])
+    batch_data = {rec['metadata']['name']: rec['data'] for rec in dataset['records'].values()}
+    batch_metadata = {
+        rid: {
+            'name': rec['metadata']['name'],
+            'offsets': rec['metadata']['offsets'],
+            'checksums': rec['metadata']['checksums'],
+            'age': rec['metadata']['age'],
+            'sex': rec['metadata']['sex'],
+            'dx': rec['metadata']['dx']
+        }
+        for rid, rec in dataset['records'].items()
+    }
 
+    main_folder = dataset['metadata']['main_folder']
+    subfolder = dataset['metadata']['subfolder']
+    save_stem = f"batch_{main_folder}_{subfolder}"
+
+    data_path = output_dir / f"{save_stem}_data.npy"
+    meta_path = output_dir / f"{save_stem}_metadata.npy"
+
+    np.save(data_path, batch_data)
+    np.save(meta_path, batch_metadata)
+
+    debug_print(f"\nSaved processed data to: {data_path}")
+    debug_print(f"Saved metadata to: {meta_path}")
+
+# incarca toate batch-urile dintr-un folder, de ex, toate subfolderele din 01
+def load_batches_from_folder(main_folder):
+    subfolders = [f.name for f in (RAW_DATA_DIR / main_folder).iterdir() if f.is_dir()]
+    processed_folder = PROCESSED_DATA_DIR / main_folder
+    processed_folder.mkdir(parents=True, exist_ok=True)
+
+    print(f"\nLoading all batches from main folder: {main_folder}")
+    
+    with tqdm(total=len(subfolders), desc=f"Processing {main_folder}") as pbar:
+        for subfolder in subfolders:
+            batch_dataset = load_batch(RAW_DATA_DIR, main_folder, subfolder)
+            save_batch(batch_dataset, processed_folder)
+            pbar.update(1)  
+            pbar.set_description(f"Loaded batch {main_folder}/{subfolder}")
 
 if __name__ == "__main__":
-    current_dir = Path(__file__).parent.parent
-    print("Current directory:", current_dir)
-    data_dir = current_dir / 'data' /'raw'/ 'WFDBRecords'
-    
-    # Create processed directory if it doesn't exist
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # Load batch (01/010)
-    batch_dataset = load_batch(data_dir, main_folder="01", subfolder="010")
 
-    print("\nBatch Summary:")
-    print("-" * 50)
-    print(f"Successfully loaded: {batch_dataset['metadata']['total_records']} records")
-    print(f"Failed records: {len(batch_dataset['metadata']['failed_records'])}")
-
-
-    if batch_dataset['records']:
-        first_record = next(iter(batch_dataset['records'].values()))
-        print("\nRecord Details:")
-        print(f"Signal shape: {first_record['data'].shape}")
-        print(f"Sampling rate: {SAMPLE_RATE} Hz")  # Using constant
-        print("\nMetadata:")
-        print(f"Age: {first_record['metadata']['age']}")
-        print(f"Sex: {first_record['metadata']['sex']}")
-        print(f"Diagnosis: {first_record['metadata']['dx']}")
-
-        # Save both data and metadata
-        batch_data = np.stack([record['data'] for record in batch_dataset['records'].values()])
-        batch_metadata = {rid: {
-            'name': record['metadata']['name'],
-            'offsets': record['metadata']['offsets'],
-            'checksums': record['metadata']['checksums'],
-            'age': record['metadata']['age'],
-            'sex': record['metadata']['sex'],
-            'dx': record['metadata']['dx']
-        } for rid, record in batch_dataset['records'].items()}
-        
-        # Modified save commands to use PROCESSED_DATA_DIR
-        save_path = PROCESSED_DATA_DIR / f'batch_{batch_dataset["metadata"]["main_folder"]}_{batch_dataset["metadata"]["subfolder"]}'
-        np.save(f'{save_path}_data.npy', batch_data)
-        np.save(f'{save_path}_metadata.npy', batch_metadata)
-        print(f"\nSaved processed data to: {save_path}_data.npy")
-        print(f"Saved metadata to: {save_path}_metadata.npy")
-
-    # Test print for JS00004
-    if 'JS00004' in batch_dataset['records']:
-        record = batch_dataset['records']['JS00004']
-        print("\nJS00004 Details:")
-        print("-" * 50)
-        print("Offsets and Checksums by lead:")
-        for i, (lead, offset, checksum) in enumerate(zip(LEADS, 
-                                                        record['metadata']['offsets'],
-                                                        record['metadata']['checksums'])):
-            print(f"{lead}: offset={offset}, checksum={checksum}")
-        print("\nPatient Info:")
-        print(f"Age: {record['metadata']['age']}")
-        print(f"Sex: {record['metadata']['sex']}")
-        print(f"Diagnosis: {record['metadata']['dx']}")
-        
-    # Save with updated metadata structure
-    batch_metadata = {rid: {
-        'name': record['metadata']['name'],
-        'offsets': record['metadata']['offsets'],
-        'checksums': record['metadata']['checksums'],
-        'age': record['metadata']['age'],
-        'sex': record['metadata']['sex'],
-        'dx': record['metadata']['dx']
-    } for rid, record in batch_dataset['records'].items()}
-
-
+    subfolders = sorted([f.name for f in (RAW_DATA_DIR).iterdir() if f.is_dir()])
+    for subfolder in subfolders:
+        load_batches_from_folder(subfolder)

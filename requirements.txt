@@ -11,3 +11,5 @@ pandas
 pytest
 seaborn
 scikit-learn
+statsmodels
+torch

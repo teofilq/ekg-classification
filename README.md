@@ -36,7 +36,8 @@ This project focuses on detecting and classifying cardiac arrhythmias in 12-lead
   
 
 ## References
-1. [PhysioNet EKG Arrhythmia Database](https://physionet.org/content/mitdb/1.0.0/)
+
+1. [PhysioNet EKG Arrhythmia Database](https://physionet.org/content/ecg-arrhythmia/1.0.0/)
 2. [Heart Arrhythmias Overview](https://www.physio-pedia.com/Heart_Arrhythmias)
 
 ## Data Processing Structure
@@ -79,3 +80,23 @@ Each batch contains two files:
 # w00ps files
 - WFDBRecords/01/019/JS01052.hea
 - WFDBRecords/23/236/JS23074.hea
+
+# Useful links
+- [Sparse representation-based ECG signal enhancement and QRS detection](https://pubmed.ncbi.nlm.nih.gov/27811395/)
+- [Sparse representation of ECG signals for automated recognition of cardiac arrhythmias](https://www.sciencedirect.com/science/article/abs/pii/S0957417418301842)
+- [Block sparse multi-lead ECG compression exploiting between-lead collaboration](https://ietresearch.onlinelibrary.wiley.com/doi/full/10.1049/iet-spr.2018.5076)
+- [PERSONALIZED ECG MONITORING by sparse representation based feature extraction](https://trepo.tuni.fi/bitstream/handle/10024/119250/JoronenManu.pdf?sequence=2&isAllowed=y)
+
+
+# Altele
+Ce am folosit
+- https://www.nature.com/articles/s41598-020-59821-7
+
+
+- Implementare Nlm
+https://github.com/zheng120/ECGDenoisingTool
+
+
+- Exemplu date fara zgomot
+  https://figshare.com/collections/ChapmanECG/4560497/2
+
